@@ -535,7 +535,7 @@ close：结束元素
     </delete>
 ```
 
-#### 添加员工：
+### 添加员工：
 
 #### controller：
 
@@ -583,6 +583,68 @@ close：结束元素
  @Insert("INSERT INTO emp (username , name ,gender ,image ,job,entrydate ,dept_id , create_time ,update_time)"+
      "values (#{username} , #{name} , #{gender} , #{image} , #{job} ,#{entrydate} ,#{deptId} ,#{createTime},#{updateTime})")
      void add(Emp emp);
+```
+
+### 根据id修改：
+
+####    controller：
+
+1.接受参数（@RrquestBody）
+
+2.调用service接口方法
+
+3.响应
+
+``` java
+   @PutMapping
+    public Result update(@RequestBody Emp emp){
+        //调用service对象的接口
+        empService.updateId(emp);
+        return Result.success();
+    }
+```
+
+### service：
+
+1。完善基础数据
+
+2.调用mapper接口方法
+
+``` java 
+ @Override
+    public void updateId(Emp emp) {
+        /**
+         * 完善基础数据
+         */
+        //1.完善数据
+        emp.setUpdateTime(LocalDateTime.now());
+        //2.调用mapper接口的方法
+        empMapper.updateId(emp);
+    }
+```
+
+
+
+### mapper:
+
+1.调用数据
+
+``` xml
+  <update id="updateId">
+        update  emp
+        <set>
+            <if test="username != null and username != ''"> username = #{username}, </if>
+            <if test="password != null and password != ''"> password = #{password}, </if>
+            <if test="name != null and name != ''"> name = #{name}, </if>
+            <if test="gender != null"> gender = #{gender}, </if>
+            <if test="image != null and image != ''"> image = #{image}, </if>
+            <if test="job != null"> job = #{job}, </if>
+            <if test="entrydate != null"> entrydate = #{entrydate}, </if>
+            <if test="deptId != null"> dept_id = #{deptId}, </if>
+            <if test="updateTime != null"> update_time = #{updateTime} </if>
+        </set>
+        where id =# {id}
+    </update>
 ```
 
 
@@ -708,3 +770,572 @@ public class UploadController {
 
 获取密钥
 
+### 登录功能：
+
+创造LoginController类，用于登录验证
+
+#### controller：
+
+1.接受并封装参数
+
+2.调用service方法进行登录
+
+3.响应（如果返回类型为bull则登陆失败 ， 否则登陆成功）
+
+``` java
+@Slf4j
+@RestController
+public class LoginController {
+    @Autowired
+    EmpService empService;
+    @PostMapping("/login")
+    public Result login(@RequestBody Emp emp ){
+        log.info("员工登录：{}",emp);
+        Emp e = empService.login(emp);
+        return e != null?Result.success() : Result.error("密码或账号错误");//主要
+    }
+}
+```
+
+
+
+#### service：
+
+1.调用mapper接口擦查询用户信息
+
+``` java
+ public Emp login(Emp emp){
+        return empMapper.getUserAndPs(emp);
+    }
+```
+
+
+
+#### mapper：
+
+1.调用信息。
+
+``` java
+  /*
+    员工的登录，查询员工
+     */
+    @Select("select * from emp where username = #{username} and password = #{password}")
+    Emp getUserAndPs(Emp emp);
+```
+
+
+
+> [!WARNING]
+>
+> 联调测试：在未登录情况下，我们也可以直接访问部门管理，员工管理等功能。
+
+### 登录校验：
+
+传统的会话技术，JWT令牌 ，过滤器，拦截器
+
+> 涉及两方面：登陆标记和统一拦截。
+>
+> 登陆标记：用户登录成功后，每一次请求，都可以获取到标记。 
+>
+> 统一拦截：
+>
+> 过滤器：filter
+>
+> 拦截器：interceptor
+
+#### 会话技术：
+
+会话：浏览器于服务器的交流。，一次会话可以包含多次请求和响应
+
+会话跟踪：一种维护浏览器状态的方法，服务器需识别多次请求是否来自同一浏览器，以便在同一次会话的多次请求间共享数据。
+
+会话跟踪方案：
+
+客户端会话跟踪技术：Cookie
+
+服务端会话跟踪技术：Session
+
+令牌技术
+
+会话跟踪技术对比：
+
+#### cookie:
+
+cookie：HTTP请求头包含存储先前通过与所述服务器发送的HTTP cookies set-Cookie头
+
+Set-cookie:HTTP响应头被用于服务器用户代理发送Cookie
+
+> [!NOTE]
+>
+> 跨域区分三个维度：协议，IP/域名，端口。
+
+#### session：
+
+基于cookie，分布集成开发中Session是失效的
+
+### 令牌技术：
+
+####   JWT令牌：
+
+定义了一种简洁的，自包含的格式，用于在通信双方以JSON数据格式安全的传输信息。由于数字签名的存在，这些信息是可靠的。
+
+##### 组成：
+
+第一部分：Header，记录令牌类型，签名算法等。{“alg“ ：“HS256 ”，”type“：”JWT“ ，}
+
+> [!NOTE]
+>
+> Base64：是一种基于64个可打印字符来表示二进制数码的编码方式
+
+第二部分：Payload（有效载荷），携带一些自定义信息，默认信息等。例如{"id":"1",username ;"tom"}
+
+第三部分：Signature（签名），防止Token被篡改，确保安全性/将header，payload并加入指定密钥，通过签名算法计算而来
+
+场景：登录认证。
+
+1.登录成功后，生成令牌。
+
+2.后续每个请求，都会携带JWR令牌，系统每次请求处理之前，先校验令牌，通过后在处理
+
+主要生成，检验令牌。
+
+#### 引入依赖：
+
+``` xml
+    <!--  JWT依赖 0.9.1版本 -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt</artifactId>
+            <version>0.9.1</version>
+```
+
+> [!WARNING]
+>
+> 下面的生成和解析，适合于低版本，高版本别的方法
+
+
+
+#### JWT生成：
+
+```java
+    /**
+     * JWT生成
+     */
+    @Test
+    public void testGenJwt(){
+        Map<String , Object> claims = new HashMap<>();
+        claims.put("id" ,1);
+        claims.put("name","tom");
+
+        String jwt = Jwts.builder()
+                .signWith(SignatureAlgorithm.HS256,"ysclove")  //签名算法
+                .setClaims(claims)//设置自定义（载荷）
+                .setExpiration(new Date(System.currentTimeMillis()+3600*1000))//设置有效期1H
+                .compact();//
+        System.out.println(jwt);
+    }
+```
+
+JWT解析：
+
+```java
+  /**
+     * 解析JWT
+     */
+    @Test
+    public void testParseJwt() {
+        Claims claims = Jwts.parser()
+                .setSigningKey("ysclove")//指定签名秘钥
+                .parseClaimsJws("eyJhbGciOiJIUzI1NiJ9.eyJuYW1lIjoidG9tIiwiaWQiOjEsImV4cCI6MTczMDk5NjQ1OH0.ztOeYqCAJR_x0Eto4r-uJX0vcjaMfV1IkLZRL-N-0oM")//解析令牌
+                .getBody();
+        System.out.println(claims);
+    }
+```
+
+#### 大概思路：
+
+令牌生成：登陆成功，生成JWT令牌，并返回给前端
+
+令牌校验：在请求达到服务端后，对令牌进行统一拦截，校验。
+
+#### 登录结合生成令牌：
+
+#####  步骤：
+
+引入JWT令牌操作工具类
+
+登录完成后，调用工具类生成JWT令牌，并返回。
+
+### 过滤器filter：
+
+Filter过滤器，是javaweb三大组件（servlet，Filter，Listener）之一。
+
+过滤器可以把对资源的请求拦截下来，从而实现一些特殊的功能。
+
+过滤器一般完成一些通用的操作，比如：登录校验 ， 统一编码等 ， 敏感字段。
+
+#### Filter快速入门：
+
+定义Filter：定义一个类，实现Filter接口，并重写其所有方法。
+
+2.配置Filter：Filter类上加@WebFilter注解 ， 配置拦截资源的路径，应道引导类上加@ServlerComponentScan开启Servlet组件支持
+
+``` java
+/**
+  另外建造包，filter
+*/
+
+package com.itheima.filter;
+import javax.servlet.*;
+import javax.servlet.annotation.WebFilter;
+import java.io.IOException;
+import java.util.logging.LogRecord;
+@WebFilter(urlPatterns = "/*")//配置
+public class DemoFilter implements Filter {
+    @Override//初始化方法 ，只调用一次
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+        System.out.println("init : 初始化方法进行了");
+        //放行
+        filterChain.doFilter(servletRequest ,servletResponse);
+    }
+
+    @Override//拦截请求之后调用，调用多次
+    public void init(FilterConfig filterConfig) throws ServletException {
+      System.out.println("拦截到了请求");
+    }
+
+    @Override//摧毁方法 ，只调用一次
+    public void destroy() {
+        System.out.println("destroy : 摧毁方法执行了");
+    }
+}
+```
+
+#### 详解：
+
+``` java
+//放行前逻辑
+filterChain.doFilter(servletRequest ,servletResponse);
+//放行后逻辑
+
+```
+
+> [!IMPORTANT]
+>
+> 放行后访问对资源，资源访问完成后， 还会回到Filter
+>
+> 如果回到filter，执行放行后的逻辑。
+
+Filter：
+
+拦截具体路径 （/login）， 目录拦截（/emps/*），拦截所有（/*）
+
+过滤器链：
+
+一个web应用中，可配置多个过滤器 ，这多个过滤器就形成了一个过滤器链。
+
+顺序：按照配置的Filter，优先级是按照过滤器类名的自然排序。
+
+###       登录校验Filter：
+
+#### 流程：
+
+1.获取请求url
+
+2.判断是否是登录请求，
+
+ 3.获取请求头token ，
+
+4.解析token
+
+5.放行
+
+``` java
+package com.itheima.filter;
+import com.fasterxml.jackson.databind.util.JSONPObject;
+import com.itheima.pojo.Result;
+import com.itheima.utils.JwtUtils;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.StringUtils;
+import org.json.JSONObject;
+import javax.servlet.*;
+import javax.servlet.annotation.WebFilter;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+@Slf4j
+@WebFilter(urlPatterns = "/*")
+public class LoginCheckFilter implements Filter {
+    @Override
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+        HttpServletRequest rep = (HttpServletRequest) servletRequest;
+        HttpServletResponse response = (HttpServletResponse) servletResponse;
+
+        //1.获取请求url
+         String url = rep.getRequestURL().toString();
+         log.info("请求的url：{}" ,url);
+        //2.判断是否是登录请求，
+        if(url.contains("login")){
+            log.info("登陆操作，放行");
+            filterChain.doFilter(servletRequest,servletResponse);
+            return ;
+        }
+       // 3.获取请求头token ，
+         String jwt = rep.getHeader("token");
+        //判断jwt是否存在
+        if(!StringUtils.hasLength(jwt)){
+            log.info("请求头为空，返回未登陆信息");
+            Result error = Result.error("NOT_LOGIN");
+            //手动封装 对象--json
+            JSONObject jsonObject = new JSONObject(error);
+            String login = jsonObject.toString();
+            response.getWriter().write(login);
+            return ;
+        }
+        //4.解析token
+        try{
+            JwtUtils.parseJWT(jwt);
+        }catch(Exception e){
+            e.printStackTrace();
+            log.info("解析令失败 ， 返回登陆错误信息");
+            Result error = Result.error("NOT_LOGIN");
+            //手动封装 对象--json
+            JSONObject jsonObject = new JSONObject(error);
+            String login = jsonObject.toString();
+            response.getWriter().write(login);
+            return ;
+        }
+        // 5.放行
+        log.info("linpaihef:");
+        filterChain.doFilter(servletRequest,servletResponse);
+       // 5.放行
+    }
+}
+```
+
+
+
+### 拦截器（Interceptor）
+
+ 简介：
+
+是一种动态拦截方法调用的机制 ，类似于过滤器。spring框架中提供的，用来动态拦截控制器方法的执行。
+
+作用：拦截请求 ， 在指定的方法调用前后，根据业务需要执行预先定义好的代码。
+
+快速入门：
+
+1.定义拦截器，实现Handerinterceptor接口，重写其方法
+
+2.注册拦截器
+
+prehandle // 目标方法执行前执行，返回true：放行 ， 返回false：不放行
+
+posthandle：//目标资源方法执行后执行
+
+afterCompletion：//试图渲染完毕后执行，最后执行
+
+3.配置拦截器
+
+配置类：webConfig+注解@Configuration
+
+重写方法，addInterceptor
+
+#### 细节：
+
+拦截器可以根据需求，配置不同拦截路径：
+
+addpathPatterns//需要拦截哪些资源
+
+excludePathPatterns //不需要拦截哪些资源
+
+/* 一级路径 ， /**任意级路径
+
+Filter与Interceptor：
+
+接口规范不同：过滤器需要实现Filter接口，而拦截器需要实现HandlerInterceptor接口
+
+拦截规范不同：过滤器Filter会拦截所有的资源，而Interceptor只会拦截Spring环境中的资源。
+
+#### Interceptor登录校验：
+
+1.获取请求
+
+2.判断请求url中是否包含login，如果包含，说明是登录操作，放行。
+
+3.获取请求头中的令牌
+
+4.判断令牌是否存在，如果不存在，返回错误消息
+
+5.解析token，如果解析失败返回错误结果
+
+6.放行。
+
+``` java
+package com.itheima.interceptor;
+
+import com.itheima.pojo.Result;
+import com.itheima.utils.JwtUtils;
+import lombok.extern.slf4j.Slf4j;
+import org.json.JSONObject;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.ModelAndView;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+@Slf4j
+@Component//ioc容器
+public class LoginCheckInterceptor implements HandlerInterceptor {
+    @Override//目标资源方法运行前，返回ture：放行 ，返回false：拦截
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        System.out.println("prehandle");
+        //获取url
+        String url = request.getRequestURL().toString();
+        //2.判断url是否包含login
+        if(url.contains("login")){
+            log.info("放行操作，登录");
+           return true;
+        }
+        //3.获取请求头令牌
+        String jwt = request.getHeader("token");
+        //4.判断请求头令牌是否为空
+        if(!StringUtils.hasLength(jwt)){
+            log.info("请求头为空：返回未登录信息");
+            Result error = Result.error("NOT_LOGIN");
+            //手动封装
+            JSONObject jsonObject = new JSONObject(error);
+            String login = jsonObject.toString();
+            response.getWriter().write(login);
+            return false ;
+        }
+        // 5.解析jwt令牌
+        try{
+            JwtUtils.parseJWT(jwt);
+        }catch(Exception e){
+            e.printStackTrace();
+            Result error = Result.error("NOT_LOGIN");
+            //手动封装
+            JSONObject jsonObject = new JSONObject(error);
+            String login = jsonObject.toString();
+            response.getWriter().write(login);
+            return false ;
+        }
+        //6.放行
+        log.info("放行：");
+        return true;
+    }
+
+    @Override//目标资源方法运行后运行
+    public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
+       System.out.println("postHandle");
+    }
+
+    @Override//视图渲染完毕后执行，最后执行
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+        System.out.println("afterCompletion");
+    }
+}
+```
+
+### 异常处理：
+
+ 方案一：在Collection的方法中进行try...catch处理。（繁琐，臃肿）
+
+方案二：全局异常处理器。（推荐）
+
+#### 全局异常处理器：
+
+定义全局异常处理器：添加@RestControllerAdvice
+
+@ExceptionHandler（一种类型异常）
+
+``` java
+package com.itheima.exception;
+
+import com.itheima.pojo.Result;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+/**
+ * 全局异常处理器
+ */
+@RestControllerAdvice
+public class GlobalException {
+    @ExceptionHandler(Exception.class)
+    public Result ex(Exception ex){
+        ex.printStackTrace();
+        return Result.error("对不起，操作失败请联系管理员");
+    }
+}
+
+```
+
+
+
+### Spring事务管理&AOP：
+
+#### 开启事务：@Transacyional
+
+#### 位置：业务（service）层 的方法上，类上，接口上。
+
+``` java
+ @Transactional//当前方法交给spring事务管理
+    @Override
+    public void deleteId(Integer id) {
+        deptMapper.deleteId(id);
+        int a = 1 /0;
+        //根据部门id删除部门员工；
+        empMapper.deleteByDeptId(id);
+    }
+```
+
+#### 作用：
+
+将当前方法交给Spring进行事务管理，方法执行前，开启事务；成功执行完毕，提交事务；出现异常，回滚事务。
+
+#### spring事务管理日志：
+
+```yml
+#spring事务管理日志
+logging:
+  level:
+    org.springframework.jdbc.support.JdbcTransactionManager: debug
+```
+
+#### 事务进阶：
+
+#####  rollbackfor：
+
+默认情况下，只有出现RuntimeRxception才回滚事务。RollbackFor属性用于控制出现何种异常类型，回滚事务。
+
+``` java
+    @Transactional(rollbackFor = Exception.class)//当前方法交给spring事务管理
+    @Override
+    public void deleteId(Integer id) {
+        deptMapper.deleteId(id);
+        int a = 1 /0;
+        //根据部门id删除部门员工；
+        empMapper.deleteByDeptId(id);
+    }
+```
+
+##### propagation:
+
+事务的传播行为:指的是当一个事务方法被另一个事务方法调用时，这个事务方法应该如何进行事务控制。
+
+加入@propagation属性
+
+| 属性值      | 含义                                         |
+| ----------- | -------------------------------------------- |
+| ** REQUIRD  | [默认事务]需要事务，有则加入，无则创建新事务** |
+| ** REQUIRD_NEW | 需要新事务，无论有无，总是创建新事物         |
+| SUPPORTS    | 支持事务，有则加入，无则在无事务状态中进行   |
+| NOT_SUPPORTED   | 不支持事务，在无事务状态下运行，如果当前存在已有事务，则挂起当前事务|
+| MANDTORY|必须有事务，否则抛出异常|
+| NEVER|必须没事务，否则抛出异常|
+
+REQUIRE：大部分情况下都是用该传播行为
+
+REQUIRE_NEW：当我们不希望事务之间相互影响时，可以使用传播行为，比如：下订单前需要记录日志，不论订单保存成功与否，都需要保证日志记录能够记录成功。

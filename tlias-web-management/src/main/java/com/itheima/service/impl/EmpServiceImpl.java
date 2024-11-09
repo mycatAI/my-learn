@@ -43,4 +43,18 @@ public class EmpServiceImpl implements EmpService {
         //2.调用mapper接口方法
         empMapper.add(emp);
     }
+
+    @Override
+    public void updateId(Emp emp) {
+        /**
+         * 完善基础数据
+         */
+        //1.完善数据
+        emp.setUpdateTime(LocalDateTime.now());
+        //2.调用mapper接口的方法
+        empMapper.updateId(emp);
+    }
+    public Emp login(Emp emp){
+        return empMapper.getUserAndPs(emp);
+    }
 }

@@ -27,4 +27,7 @@ public interface DeptService {
      *修改部门
      */
     void update(Dept depr);
+    /**
+     *
+     */
 }

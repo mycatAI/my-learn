@@ -36,7 +36,9 @@ public class DeptController {
     public Result delete(@PathVariable Integer id){
         log.info("删除部门id:{}",id);
         //调用service接口
-        deptService.deleteId(id);
+        deptService.deleteId(id);//根据id删除部门
+        //根据部门id删除员工
+
        return Result.success();
     }
     /**

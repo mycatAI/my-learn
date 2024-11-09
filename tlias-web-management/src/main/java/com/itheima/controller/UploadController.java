@@ -24,6 +24,5 @@ public class UploadController {
         //将文件储存在服务器的磁盘目录中：D:\image
         image.transferTo(new File("D:\\image\\"+newFileName));
         return Result.success();
-
     }
 }

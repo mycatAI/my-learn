@@ -16,4 +16,9 @@ public interface EmpService {
     PageBean selectAll(Integer page , Integer pageBean , String name , Short gender , LocalDate begin , LocalDate end);
     void deleteId(List<Integer> ids);
     void addEmp(Emp emp);
+    void updateId(Emp emp);
+    /**
+     * 验证登录
+     */
+    Emp login(Emp emp);
 }

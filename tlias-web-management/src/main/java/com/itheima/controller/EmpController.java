@@ -39,16 +39,35 @@ public class EmpController {
         //响应
         return Result.success(pageBean);
     }
+
     @DeleteMapping("/{ids}")
     public Result deleteId( @PathVariable List<Integer> ids){
         //1.调用service接口批量删除
         empService.deleteId(ids);
         return Result.success();
     }
+
+    /**
+     * 添加员工
+     * @param emp
+     * @return
+     */
     @PostMapping
     public Result add(@RequestBody Emp emp){
         //1,使用service接口方法
         empService.addEmp(emp);
+        return Result.success();
+    }
+
+    /**
+     * 修改员工
+     * @param emp
+     * @return
+     */
+    @PutMapping
+    public Result update(@RequestBody Emp emp){
+        //调用service对象的接口
+        empService.updateId(emp);
         return Result.success();
     }
 
